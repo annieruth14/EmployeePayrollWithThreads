@@ -169,7 +169,7 @@ public class EmployeePayrollService {
 		});
 		while(employeeAdditionStatus.containsValue(false)) {
 			try {
-				Thread.sleep(10);
+				Thread.sleep(20);
 			}
 			catch (InterruptedException e) {
 				e.printStackTrace();
