@@ -175,6 +175,31 @@ public class EmployeePayrollService {
 				e.printStackTrace();
 			}
 		}
-			
+	}
+
+	public void updateSalary(Map<Integer, Double> nameSalaryMap) {
+		Map<Integer, Boolean> employeeAdditionStatus = new HashMap<Integer, Boolean>();
+		nameSalaryMap.forEach((id , salary) -> {
+			Runnable task = () -> {
+				employeeAdditionStatus.put(id.hashCode(), false);
+				try {
+					employeePayrollDBService.udateSalaryUsingPreparedStatement(id, salary);
+				} catch (EmployeePayrollException e) {
+					e.printStackTrace();
+				}
+				employeeAdditionStatus.put(id.hashCode(), true);
+				//System.out.println("Employee added: "+ Thread.currentThread().getName());
+			};
+			Thread thread = new Thread(task);
+			thread.start();
+		});
+		while(employeeAdditionStatus.containsValue(false)) {
+			try {
+				Thread.sleep(20);
+			}
+			catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 }

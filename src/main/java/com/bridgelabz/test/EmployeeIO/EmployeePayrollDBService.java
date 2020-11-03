@@ -26,17 +26,18 @@ public class EmployeePayrollDBService {
 			employeePayrollDBService = new EmployeePayrollDBService();
 		return employeePayrollDBService;
 	}
-
-	private synchronized Connection getConnection() throws SQLException {
+	
+	// synchronized can be used here so that once a thread enters this method, it completely executes it
+	private Connection getConnection() throws SQLException {
 		connectionCounter ++;
 		String jdbcURL = "jdbc:mysql://localhost:3306/payroll_service?useSSL=false";
 		String userName = "root";
 		String password = "Admin@123";
 		Connection connection;
 		//System.out.println("Connecting to database: " + jdbcURL);
-		System.out.println("Processing Thread: "+ Thread.currentThread().getName() + "Connecting to database with Id: " + connectionCounter);
+		//System.out.println("Processing Thread: "+ Thread.currentThread().getName() + "Connecting to database with Id: " + connectionCounter);
 		connection = DriverManager.getConnection(jdbcURL, userName, password); // used DriverManager to get the connection
-		System.out.println("Processing Thread: " + Thread.currentThread().getName() + " Id: "+connectionCounter+ " Connection is successful !!!!" + connection);
+		//System.out.println("Processing Thread: " + Thread.currentThread().getName() + " Id: "+connectionCounter+ " Connection is successful !!!!" + connection);
 		return connection;
 	}
 
@@ -273,5 +274,78 @@ public class EmployeePayrollDBService {
 		} catch (SQLException e) {
 			throw new EmployeePayrollException(e.getMessage(), EmployeePayrollException.ExceptionType.SQL_EXCEPTION);
 		}
+	}
+	
+	
+	// update employee_payroll set basic_pay = ? where id = ?;
+	//update pay set basic_pay = ?, deductions = ?, taxable_pay = ?, tax = ?, net_pay = ? where emp_id = ? ;
+	
+	
+	public int udateSalaryUsingPreparedStatement(int id, double salary) throws EmployeePayrollException {
+		Connection connection = null;
+		// establishing connection
+		try {
+			connection = getConnection();
+			connection.setAutoCommit(false);
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new EmployeePayrollException(e.getMessage(), EmployeePayrollException.ExceptionType.SQL_EXCEPTION);
+		}
+		// inserting into first table
+		try (Statement statement = connection.createStatement()) {
+			String sql = String.format("update employee_payroll set basic_pay = %s where id = %s;", salary, id);
+			int rowAffected = statement.executeUpdate(sql);
+			if (rowAffected == 0)
+				return 0;
+		} catch (SQLException e) {
+			try {
+				e.printStackTrace();
+				connection.rollback();
+			} catch (SQLException e1) {
+				e.printStackTrace();
+				throw new EmployeePayrollException(e.getMessage(),
+						EmployeePayrollException.ExceptionType.SQL_EXCEPTION);
+			}
+		}
+		// inserting into second table
+		try (Statement statement = connection.createStatement()){
+			double deductions = salary * 0.2;
+			double taxablePay = salary - deductions;
+			double tax = taxablePay * 0.1;
+			double netPay = salary - tax;
+			String sql = String.format("update pay set basic_pay = %s, deductions = %s, taxable_pay = %s, tax = %s, net_pay = %s where emp_id = %s ;"
+					, salary, deductions, taxablePay, tax, netPay, id);
+			int rowAffected = statement.executeUpdate(sql);
+			if (rowAffected == 0) {
+				return 0;
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+			try {
+				connection.rollback();
+			} catch (SQLException e1) {
+				e.printStackTrace();
+				throw new EmployeePayrollException(e.getMessage(), EmployeePayrollException.ExceptionType.SQL_EXCEPTION);
+			}
+		}
+		// for final committing
+		try {
+			connection.commit();
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new EmployeePayrollException(e.getMessage(), EmployeePayrollException.ExceptionType.SQL_EXCEPTION);
+		}
+		// closing the connection
+		finally {
+			if (connection != null) {
+				try {
+					connection.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+					throw new EmployeePayrollException(e.getMessage(), EmployeePayrollException.ExceptionType.SQL_EXCEPTION);
+				}
+			}
+		}
+		return 1;
 	}
 }
