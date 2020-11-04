@@ -183,7 +183,13 @@ public class EmployeePayrollService {
 			Runnable task = () -> {
 				employeeAdditionStatus.put(id.hashCode(), false);
 				try {
-					employeePayrollDBService.udateSalaryUsingPreparedStatement(id, salary);
+					int result = employeePayrollDBService.updateSalaryUsingPreparedStatement(id, salary);
+					if(result == 0)
+						return;
+					employeePayrollList.forEach(employee -> {
+						if(employee.getId() == id) 
+							employee.setSalary(salary);
+					});
 				} catch (EmployeePayrollException e) {
 					e.printStackTrace();
 				}

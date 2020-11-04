@@ -70,6 +70,7 @@ public class EmployeePayrollDBService {
 
 	public List<EmployeePayroll> getEmployeePayrollData(String name) throws EmployeePayrollException {
 		List<EmployeePayroll> list = new ArrayList<>();
+		employeePayrollDataStatement = null;
 		if (this.employeePayrollDataStatement == null)
 			this.prepareStatementForEmployeeData();
 		try {
@@ -77,6 +78,7 @@ public class EmployeePayrollDBService {
 			ResultSet resultSet = employeePayrollDataStatement.executeQuery();
 			list = getEmployeePayrollData(resultSet);
 		} catch (SQLException e) {
+			e.printStackTrace();
 			throw new EmployeePayrollException(e.getMessage(), EmployeePayrollException.ExceptionType.SQL_EXCEPTION);
 		}
 		return list;
@@ -189,7 +191,6 @@ public class EmployeePayrollDBService {
 				ResultSet resultSet = statement.getGeneratedKeys();
 				if (resultSet.next())
 					employeeId = resultSet.getInt(1);
-				//System.out.println(resultSet.getInt(1));
 			}
 		} catch (SQLException e) {
 			try {
@@ -276,12 +277,7 @@ public class EmployeePayrollDBService {
 		}
 	}
 	
-	
-	// update employee_payroll set basic_pay = ? where id = ?;
-	//update pay set basic_pay = ?, deductions = ?, taxable_pay = ?, tax = ?, net_pay = ? where emp_id = ? ;
-	
-	
-	public int udateSalaryUsingPreparedStatement(int id, double salary) throws EmployeePayrollException {
+	public int updateSalaryUsingPreparedStatement(int id, double salary) throws EmployeePayrollException {
 		Connection connection = null;
 		// establishing connection
 		try {
@@ -292,9 +288,13 @@ public class EmployeePayrollDBService {
 			throw new EmployeePayrollException(e.getMessage(), EmployeePayrollException.ExceptionType.SQL_EXCEPTION);
 		}
 		// inserting into first table
-		try (Statement statement = connection.createStatement()) {
-			String sql = String.format("update employee_payroll set basic_pay = %s where id = %s;", salary, id);
-			int rowAffected = statement.executeUpdate(sql);
+		try {
+			String sql = "update employee_payroll set basic_pay = ? where id = ?;";
+			employeePayrollDataStatement = connection.prepareStatement(sql);
+			employeePayrollDataStatement.setDouble(1, salary);
+			employeePayrollDataStatement.setInt(2, id);
+			int rowAffected = employeePayrollDataStatement.executeUpdate();
+			System.out.println("row Affected first  "+ id+ "    " + rowAffected);
 			if (rowAffected == 0)
 				return 0;
 		} catch (SQLException e) {
@@ -313,9 +313,16 @@ public class EmployeePayrollDBService {
 			double taxablePay = salary - deductions;
 			double tax = taxablePay * 0.1;
 			double netPay = salary - tax;
-			String sql = String.format("update pay set basic_pay = %s, deductions = %s, taxable_pay = %s, tax = %s, net_pay = %s where emp_id = %s ;"
-					, salary, deductions, taxablePay, tax, netPay, id);
-			int rowAffected = statement.executeUpdate(sql);
+			String sql = "update pay set basic_pay = ?, deductions = ?, taxable_pay = ?, tax = ?, net_pay = ? where emp_id = ? ;";
+			employeePayrollDataStatement = connection.prepareStatement(sql);
+			employeePayrollDataStatement.setDouble(1, salary);
+			employeePayrollDataStatement.setDouble(2, deductions);
+			employeePayrollDataStatement.setDouble(3, taxablePay);
+			employeePayrollDataStatement.setDouble(4, tax);
+			employeePayrollDataStatement.setDouble(5, netPay);
+			employeePayrollDataStatement.setInt(6, id);
+			int rowAffected = employeePayrollDataStatement.executeUpdate();
+			System.out.println("row Affected second  " + id + "   " + rowAffected);
 			if (rowAffected == 0) {
 				return 0;
 			}
